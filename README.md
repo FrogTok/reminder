@@ -1,36 +1,59 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 리마인더
 
-## Getting Started
+매니저가 등록한 스케줄을 스트리머가 확인하고 완료 처리하는 내부용 리마인더 웹앱입니다.
+각 스트리머는 자신에게 매칭된 매니저와만 리마인더를 주고받으며, 다른 매니저·스트리머의
+일정은 서로 볼 수 없습니다.
 
-First, run the development server:
+## 스택
+
+- Next.js 16 (App Router) + TypeScript + Tailwind CSS
+- Prisma + SQLite
+- Auth.js (NextAuth v5) — 아이디/비밀번호 로그인, 자체 회원가입 없음
+
+## 시작하기
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`http://localhost:3000` 에서 확인할 수 있습니다.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 계정
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+계정은 셀프 회원가입 없이 시드 스크립트로만 생성됩니다.
 
-## Learn More
+```bash
+npm run db:seed
+```
 
-To learn more about Next.js, take a look at the following resources:
+처음 실행하면 매니저 2개, 스트리머 3개 계정이 매니저-스트리머 매칭과 함께
+생성되고, 아이디/비밀번호가 `CREDENTIALS.local.md` 파일(git에는 커밋되지 않음)에
+저장됩니다. 로그인 후 우측 상단 **설정** 메뉴에서 비밀번호를 변경할 수 있습니다.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+새 계정을 추가하거나 매니저-스트리머 매칭을 바꾸려면 `prisma/seed.ts`의
+`accounts` 배열을 수정한 뒤 `npm run db:seed`를 다시 실행하세요 (이미 있는
+아이디는 건너뜁니다). 스트리머 계정에는 담당 매니저의 `username`을
+`managerUsername`으로 지정해야 하며, 해당 매니저가 배열에서 먼저 나와야 합니다.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 권한
 
-## Deploy on Vercel
+- **매니저**: 담당 스트리머별 탭에서 리마인더 등록/삭제, 처리 현황 확인.
+  본인에게 매칭된 스트리머의 일정만 보고 조작할 수 있습니다.
+- **스트리머**: 본인 일정을 직접 등록할 수 있고, 담당 매니저가 등록한 일정도
+  함께 보입니다. 완료 처리 / 되돌리기는 둘 다 가능하지만, 삭제는 본인이
+  등록한 항목만 할 수 있습니다 (매니저가 등록한 항목은 매니저만 삭제).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+모든 접근 제어는 화면단뿐 아니라 API 라우트(`src/app/api/reminders`)에서도
+매니저-스트리머 매칭 여부와 작성자를 다시 검증합니다 (예: 생성 요청의
+`streamerId`는 스트리머 세션이면 항상 본인 id로 서버에서 강제됩니다).
+로그인하지 않은 사용자는 모든 페이지에서 `/login`으로 리다이렉트됩니다
+(`src/proxy.ts`).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 데이터베이스
+
+로컬 SQLite 파일(`prisma/dev.db`)을 사용합니다. 스키마를 변경했다면:
+
+```bash
+npx prisma migrate dev
+```

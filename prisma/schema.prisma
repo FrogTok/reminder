@@ -1,0 +1,63 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  MANAGER
+  STREAMER
+}
+
+enum ReminderStatus {
+  PENDING
+  DONE
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  displayName  String
+  role         Role
+  createdAt    DateTime @default(now())
+
+  // STREAMER only: the manager this streamer is matched to.
+  managerId String?
+  manager   User?   @relation("ManagerStreamers", fields: [managerId], references: [id])
+
+  // MANAGER only: streamers matched to this manager.
+  streamers User[] @relation("ManagerStreamers")
+
+  createdReminders   Reminder[] @relation("CreatedBy")
+  completedReminders Reminder[] @relation("CompletedBy")
+  ownReminders       Reminder[] @relation("StreamerOwner")
+}
+
+model Reminder {
+  id          String         @id @default(cuid())
+  title       String
+  description String?
+  dueAt       DateTime?
+  status      ReminderStatus @default(PENDING)
+
+  // The streamer this schedule belongs to. Visible only to this streamer
+  // and their matched manager.
+  streamerId String
+  streamer   User   @relation("StreamerOwner", fields: [streamerId], references: [id])
+
+  createdById String
+  createdBy   User   @relation("CreatedBy", fields: [createdById], references: [id])
+
+  completedById String?
+  completedBy   User?     @relation("CompletedBy", fields: [completedById], references: [id])
+  completedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([streamerId])
+}

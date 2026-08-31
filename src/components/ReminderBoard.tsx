@@ -1,0 +1,382 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import type { ReminderDto, StreamerSummary } from "@/lib/types";
+import { NewReminderForm } from "@/components/NewReminderForm";
+
+function formatDate(iso: string | null) {
+  if (!iso) return null;
+  return new Date(iso).toLocaleString("ko-KR", {
+    month: "long",
+    day: "numeric",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function isOverdue(reminder: ReminderDto) {
+  if (reminder.status !== "PENDING" || !reminder.dueAt) return false;
+  return new Date(reminder.dueAt).getTime() < Date.now();
+}
+
+export function ReminderBoard({
+  initialReminders,
+  role,
+  currentUserId,
+  streamers,
+  managerDisplayName,
+}: {
+  initialReminders: ReminderDto[];
+  role: "MANAGER" | "STREAMER";
+  currentUserId: string;
+  streamers: StreamerSummary[];
+  managerDisplayName: string | null;
+}) {
+  const [reminders, setReminders] = useState<ReminderDto[]>(initialReminders);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [selectedStreamerId, setSelectedStreamerId] = useState<string | null>(
+    streamers[0]?.id ?? null,
+  );
+
+  const isManager = role === "MANAGER";
+  // 매니저는 선택한 탭의 스트리머, 스트리머는 항상 본인을 대상으로 등록/조회합니다.
+  const targetStreamerId = isManager ? selectedStreamerId : currentUserId;
+  const scopedReminders = isManager
+    ? reminders.filter((r) => r.streamerId === selectedStreamerId)
+    : reminders;
+
+  function canDelete(reminder: ReminderDto) {
+    return isManager || reminder.createdById === currentUserId;
+  }
+
+  const { pending, done } = useMemo(() => {
+    const pending = scopedReminders
+      .filter((r) => r.status === "PENDING")
+      .sort((a, b) => {
+        if (a.dueAt && b.dueAt) return a.dueAt.localeCompare(b.dueAt);
+        if (a.dueAt) return -1;
+        if (b.dueAt) return 1;
+        return b.createdAt.localeCompare(a.createdAt);
+      });
+    const done = scopedReminders
+      .filter((r) => r.status === "DONE")
+      .sort((a, b) => (b.completedAt ?? "").localeCompare(a.completedAt ?? ""));
+    return { pending, done };
+  }, [scopedReminders]);
+
+  async function refresh() {
+    const res = await fetch("/api/reminders", { cache: "no-store" });
+    if (res.ok) {
+      setReminders(await res.json());
+    }
+  }
+
+  async function handleCreate(input: {
+    title: string;
+    description: string;
+    dueAt: string;
+  }) {
+    if (!targetStreamerId) {
+      return "담당 스트리머를 먼저 선택해주세요.";
+    }
+    setListError(null);
+    const res = await fetch("/api/reminders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: input.title,
+        description: input.description || null,
+        dueAt: input.dueAt ? new Date(input.dueAt).toISOString() : null,
+        streamerId: targetStreamerId,
+      }),
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      return body?.error ?? "리마인더 등록에 실패했습니다.";
+    }
+
+    await refresh();
+    return null;
+  }
+
+  async function handleToggle(reminder: ReminderDto) {
+    setBusyId(reminder.id);
+    setListError(null);
+    const nextStatus = reminder.status === "PENDING" ? "DONE" : "PENDING";
+
+    const res = await fetch(`/api/reminders/${reminder.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: nextStatus }),
+    });
+
+    setBusyId(null);
+    if (!res.ok) {
+      setListError("상태 변경에 실패했습니다. 다시 시도해주세요.");
+      return;
+    }
+    await refresh();
+  }
+
+  async function handleDelete(reminder: ReminderDto) {
+    setBusyId(reminder.id);
+    setListError(null);
+
+    const res = await fetch(`/api/reminders/${reminder.id}`, {
+      method: "DELETE",
+    });
+
+    setBusyId(null);
+    setConfirmDeleteId(null);
+    if (!res.ok) {
+      setListError("삭제에 실패했습니다. 다시 시도해주세요.");
+      return;
+    }
+    await refresh();
+  }
+
+  const selectedStreamer = streamers.find((s) => s.id === selectedStreamerId) ?? null;
+
+  return (
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-8 sm:px-6">
+      <div>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h1 className="font-display text-2xl font-bold sm:text-3xl">
+              스케줄 리마인더
+            </h1>
+            <p className="mt-1 text-sm text-muted">
+              {isManager
+                ? "담당 스트리머를 선택해 스케줄을 등록하고 처리 현황을 확인하세요."
+                : "직접 일정을 등록하거나, 매니저가 등록한 스케줄을 확인해 처리 완료 시 표시해주세요."}
+            </p>
+            {!isManager && (
+              <p className="mt-1 text-xs text-muted">
+                담당 매니저: {managerDisplayName ?? "지정되지 않음"}
+              </p>
+            )}
+          </div>
+          {targetStreamerId && <NewReminderForm onCreate={handleCreate} />}
+        </div>
+
+        {isManager && (
+          <div className="mt-5 flex flex-wrap gap-2">
+            {streamers.map((streamer) => (
+              <button
+                key={streamer.id}
+                type="button"
+                onClick={() => setSelectedStreamerId(streamer.id)}
+                className={`rounded-lg px-3.5 py-2 text-sm font-medium transition-colors cursor-pointer ${
+                  streamer.id === selectedStreamerId
+                    ? "bg-primary text-ink"
+                    : "bg-surface-indigo text-muted hover:text-ink hover:bg-surface-indigo-hover"
+                }`}
+              >
+                {streamer.displayName}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {isManager && streamers.length === 0 && (
+        <EmptyState text="담당 스트리머가 없습니다. 관리자에게 문의해주세요." />
+      )}
+
+      {(!isManager || selectedStreamer) && (
+        <>
+          {listError && (
+            <p className="rounded-lg bg-danger/15 px-3 py-2 text-sm text-danger">
+              {listError}
+            </p>
+          )}
+
+          <section className="flex flex-col gap-3">
+            <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted">
+              처리 대기
+              <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-bold text-ink">
+                {pending.length}
+              </span>
+            </h2>
+
+            {pending.length === 0 ? (
+              <EmptyState text="대기 중인 리마인더가 없습니다." />
+            ) : (
+              <div className="flex flex-col gap-3">
+                {pending.map((reminder) => (
+                  <div
+                    key={reminder.id}
+                    className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface-indigo p-4 sm:flex-row sm:items-start sm:justify-between"
+                  >
+                    <div className="flex flex-col gap-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-semibold text-ink">{reminder.title}</h3>
+                        {isOverdue(reminder) && (
+                          <span className="rounded-full bg-danger/20 px-2 py-0.5 text-xs font-semibold text-danger">
+                            기한 지남
+                          </span>
+                        )}
+                      </div>
+                      {reminder.description && (
+                        <p className="whitespace-pre-wrap text-sm text-muted">
+                          {reminder.description}
+                        </p>
+                      )}
+                      <p className="text-xs text-muted">
+                        {reminder.dueAt && <>마감 {formatDate(reminder.dueAt)} · </>}
+                        등록 {formatDate(reminder.createdAt)} · {reminder.createdBy.displayName}
+                      </p>
+                    </div>
+
+                    <div className="flex shrink-0 items-center gap-2">
+                      {confirmDeleteId === reminder.id ? (
+                        <DeleteConfirm
+                          busy={busyId === reminder.id}
+                          onConfirm={() => handleDelete(reminder)}
+                          onCancel={() => setConfirmDeleteId(null)}
+                        />
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            disabled={busyId === reminder.id}
+                            onClick={() => handleToggle(reminder)}
+                            className="rounded-sm bg-green px-4 py-2 text-sm font-semibold text-ink-dark transition-colors hover:bg-green-hover disabled:opacity-60 cursor-pointer"
+                          >
+                            완료 처리
+                          </button>
+                          {canDelete(reminder) && (
+                            <button
+                              type="button"
+                              disabled={busyId === reminder.id}
+                              onClick={() => setConfirmDeleteId(reminder.id)}
+                              className="rounded-sm bg-surface-onyx px-3 py-2 text-sm font-medium text-ink transition-colors hover:bg-danger/80 disabled:opacity-60 cursor-pointer"
+                            >
+                              삭제
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="flex flex-col gap-3">
+            <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted">
+              완료
+              <span className="rounded-full bg-surface-onyx px-2 py-0.5 text-xs font-bold text-ink">
+                {done.length}
+              </span>
+            </h2>
+
+            {done.length === 0 ? (
+              <EmptyState text="아직 완료된 리마인더가 없습니다." />
+            ) : (
+              <div className="flex flex-col gap-3">
+                {done.map((reminder) => (
+                  <div
+                    key={reminder.id}
+                    className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface-indigo/50 p-4 opacity-80 sm:flex-row sm:items-start sm:justify-between"
+                  >
+                    <div className="flex flex-col gap-1">
+                      <h3 className="font-semibold text-ink line-through decoration-muted">
+                        {reminder.title}
+                      </h3>
+                      {reminder.description && (
+                        <p className="whitespace-pre-wrap text-sm text-muted">
+                          {reminder.description}
+                        </p>
+                      )}
+                      <p className="text-xs text-muted">
+                        완료 {formatDate(reminder.completedAt)} ·{" "}
+                        {reminder.completedBy?.displayName ?? "-"}
+                      </p>
+                    </div>
+
+                    <div className="flex shrink-0 items-center gap-2">
+                      {confirmDeleteId === reminder.id ? (
+                        <DeleteConfirm
+                          busy={busyId === reminder.id}
+                          onConfirm={() => handleDelete(reminder)}
+                          onCancel={() => setConfirmDeleteId(null)}
+                        />
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            disabled={busyId === reminder.id}
+                            onClick={() => handleToggle(reminder)}
+                            className="rounded-sm bg-surface-onyx px-4 py-2 text-sm font-medium text-ink transition-colors hover:bg-surface-onyx/70 disabled:opacity-60 cursor-pointer"
+                          >
+                            되돌리기
+                          </button>
+                          {canDelete(reminder) && (
+                            <button
+                              type="button"
+                              disabled={busyId === reminder.id}
+                              onClick={() => setConfirmDeleteId(reminder.id)}
+                              className="rounded-sm bg-surface-onyx px-3 py-2 text-sm font-medium text-ink transition-colors hover:bg-danger/80 disabled:opacity-60 cursor-pointer"
+                            >
+                              삭제
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        </>
+      )}
+    </div>
+  );
+}
+
+function EmptyState({ text }: { text: string }) {
+  return (
+    <div className="rounded-xl border border-dashed border-hairline px-4 py-8 text-center text-sm text-muted">
+      {text}
+    </div>
+  );
+}
+
+function DeleteConfirm({
+  busy,
+  onConfirm,
+  onCancel,
+}: {
+  busy: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-muted">삭제할까요?</span>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={onConfirm}
+        className="rounded-sm bg-danger px-3 py-2 text-sm font-semibold text-ink transition-colors hover:bg-danger/80 disabled:opacity-60 cursor-pointer"
+      >
+        {busy ? "삭제 중..." : "삭제"}
+      </button>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={onCancel}
+        className="rounded-sm bg-surface-onyx px-3 py-2 text-sm font-medium text-ink transition-colors hover:bg-surface-onyx/70 disabled:opacity-60 cursor-pointer"
+      >
+        취소
+      </button>
+    </div>
+  );
+}
