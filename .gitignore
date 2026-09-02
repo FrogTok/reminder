@@ -46,3 +46,6 @@ next-env.d.ts
 
 # local credentials
 /CREDENTIALS.local.md
+
+.vercel
+.env*
