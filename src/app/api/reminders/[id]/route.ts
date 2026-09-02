@@ -67,12 +67,10 @@ export async function PATCH(
   }
 
   if (hasContentUpdate) {
-    // 매니저는 담당 스트리머의 모든 일정을, 스트리머는 본인이 등록한 일정만 수정할 수 있습니다.
-    const canEdit = session.user.role === "MANAGER" || existing.createdById === session.user.id;
-    if (!canEdit) {
-      return NextResponse.json({ error: "forbidden" }, { status: 403 });
-    }
-
+    // canAccessReminder already scoped `existing` to the caller's own board
+    // (a manager's own streamer, or a streamer's own schedule), so anyone
+    // who can see this reminder can edit its content — unlike delete, which
+    // stays restricted to whoever originally created it.
     if ("title" in body) {
       const title = typeof body.title === "string" ? body.title.trim() : "";
       if (!title) {

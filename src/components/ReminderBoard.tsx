@@ -343,25 +343,23 @@ export function ReminderBoard({
                               >
                                 완료 처리
                               </button>
+                              <button
+                                type="button"
+                                disabled={busyId === reminder.id}
+                                onClick={() => setEditingId(reminder.id)}
+                                className="rounded-sm bg-surface-onyx px-3 py-2 text-sm font-medium text-ink transition-colors hover:bg-surface-onyx/70 disabled:opacity-60 cursor-pointer"
+                              >
+                                수정
+                              </button>
                               {canDelete(reminder) && (
-                                <>
-                                  <button
-                                    type="button"
-                                    disabled={busyId === reminder.id}
-                                    onClick={() => setEditingId(reminder.id)}
-                                    className="rounded-sm bg-surface-onyx px-3 py-2 text-sm font-medium text-ink transition-colors hover:bg-surface-onyx/70 disabled:opacity-60 cursor-pointer"
-                                  >
-                                    수정
-                                  </button>
-                                  <button
-                                    type="button"
-                                    disabled={busyId === reminder.id}
-                                    onClick={() => setConfirmDeleteId(reminder.id)}
-                                    className="rounded-sm bg-surface-onyx px-3 py-2 text-sm font-medium text-ink transition-colors hover:bg-danger/80 disabled:opacity-60 cursor-pointer"
-                                  >
-                                    삭제
-                                  </button>
-                                </>
+                                <button
+                                  type="button"
+                                  disabled={busyId === reminder.id}
+                                  onClick={() => setConfirmDeleteId(reminder.id)}
+                                  className="rounded-sm bg-surface-onyx px-3 py-2 text-sm font-medium text-ink transition-colors hover:bg-danger/80 disabled:opacity-60 cursor-pointer"
+                                >
+                                  삭제
+                                </button>
                               )}
                             </>
                           )}
@@ -448,25 +446,23 @@ export function ReminderBoard({
                               >
                                 되돌리기
                               </button>
+                              <button
+                                type="button"
+                                disabled={busyId === reminder.id}
+                                onClick={() => setEditingId(reminder.id)}
+                                className="rounded-sm bg-surface-onyx px-3 py-2 text-sm font-medium text-ink transition-colors hover:bg-surface-onyx/70 disabled:opacity-60 cursor-pointer"
+                              >
+                                수정
+                              </button>
                               {canDelete(reminder) && (
-                                <>
-                                  <button
-                                    type="button"
-                                    disabled={busyId === reminder.id}
-                                    onClick={() => setEditingId(reminder.id)}
-                                    className="rounded-sm bg-surface-onyx px-3 py-2 text-sm font-medium text-ink transition-colors hover:bg-surface-onyx/70 disabled:opacity-60 cursor-pointer"
-                                  >
-                                    수정
-                                  </button>
-                                  <button
-                                    type="button"
-                                    disabled={busyId === reminder.id}
-                                    onClick={() => setConfirmDeleteId(reminder.id)}
-                                    className="rounded-sm bg-surface-onyx px-3 py-2 text-sm font-medium text-ink transition-colors hover:bg-danger/80 disabled:opacity-60 cursor-pointer"
-                                  >
-                                    삭제
-                                  </button>
-                                </>
+                                <button
+                                  type="button"
+                                  disabled={busyId === reminder.id}
+                                  onClick={() => setConfirmDeleteId(reminder.id)}
+                                  className="rounded-sm bg-surface-onyx px-3 py-2 text-sm font-medium text-ink transition-colors hover:bg-danger/80 disabled:opacity-60 cursor-pointer"
+                                >
+                                  삭제
+                                </button>
                               )}
                             </>
                           )}
