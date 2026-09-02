@@ -20,6 +20,45 @@ function isOverdue(reminder: ReminderDto) {
   return new Date(reminder.dueAt).getTime() < Date.now();
 }
 
+const URL_SPLIT_PATTERN = /(https?:\/\/[^\s]+)/g;
+// No `g` flag here — this only ever tests a single split part, and reusing a
+// `g`-flagged RegExp across calls to `.test()` carries lastIndex state that
+// makes matches alternate true/false on repeat calls.
+const URL_TEST_PATTERN = /^https?:\/\//;
+const TRAILING_PUNCTUATION = /[).,!?;:]+$/;
+
+// 제목/설명에 들어있는 URL을 새 탭에서 열리는 링크로 바꿔줍니다. 문장 끝에 붙은
+// 마침표·쉼표 등은 링크에서 잘라내 실제 URL만 정확히 걸리도록 합니다.
+function Linkified({ text }: { text: string }) {
+  const parts = text.split(URL_SPLIT_PATTERN);
+  return (
+    <>
+      {parts.map((part, index) => {
+        if (!URL_TEST_PATTERN.test(part)) {
+          return <span key={index}>{part}</span>;
+        }
+        const trailingMatch = part.match(TRAILING_PUNCTUATION);
+        const trailing = trailingMatch ? trailingMatch[0] : "";
+        const url = trailing ? part.slice(0, part.length - trailing.length) : part;
+        return (
+          <span key={index}>
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(event) => event.stopPropagation()}
+              className="break-all text-link underline underline-offset-2 hover:text-link/80"
+            >
+              {url}
+            </a>
+            {trailing}
+          </span>
+        );
+      })}
+    </>
+  );
+}
+
 export function ReminderBoard({
   initialReminders,
   role,
@@ -219,7 +258,9 @@ export function ReminderBoard({
                   >
                     <div className="flex flex-col gap-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="font-semibold text-ink">{reminder.title}</h3>
+                        <h3 className="font-semibold text-ink">
+                          <Linkified text={reminder.title} />
+                        </h3>
                         {isOverdue(reminder) && (
                           <span className="rounded-full bg-danger/20 px-2 py-0.5 text-xs font-semibold text-danger">
                             기한 지남
@@ -228,7 +269,7 @@ export function ReminderBoard({
                       </div>
                       {reminder.description && (
                         <p className="whitespace-pre-wrap text-sm text-muted">
-                          {reminder.description}
+                          <Linkified text={reminder.description} />
                         </p>
                       )}
                       <p className="text-xs text-muted">
@@ -308,11 +349,11 @@ export function ReminderBoard({
                   >
                     <div className="flex flex-col gap-1">
                       <h3 className="font-semibold text-ink line-through decoration-muted">
-                        {reminder.title}
+                        <Linkified text={reminder.title} />
                       </h3>
                       {reminder.description && (
                         <p className="whitespace-pre-wrap text-sm text-muted">
-                          {reminder.description}
+                          <Linkified text={reminder.description} />
                         </p>
                       )}
                       <p className="text-xs text-muted">
