@@ -84,6 +84,7 @@ export function ReminderBoard({
   const [listError, setListError] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [selectedStreamerId, setSelectedStreamerId] = useState<string | null>(
     streamers[0]?.id ?? null,
   );
@@ -102,6 +103,20 @@ export function ReminderBoard({
 
   function canDelete(reminder: ReminderDto) {
     return isManager || reminder.createdById === currentUserId;
+  }
+
+  function toggleMenu(reminderId: string) {
+    setMenuOpenId((prev) => (prev === reminderId ? null : reminderId));
+  }
+
+  function startEdit(reminderId: string) {
+    setMenuOpenId(null);
+    setEditingId(reminderId);
+  }
+
+  function requestDelete(reminderId: string) {
+    setMenuOpenId(null);
+    setConfirmDeleteId(reminderId);
   }
 
   const { pending, done } = useMemo(() => {
@@ -343,24 +358,14 @@ export function ReminderBoard({
                               >
                                 완료 처리
                               </button>
-                              <button
-                                type="button"
-                                disabled={busyId === reminder.id}
-                                onClick={() => setEditingId(reminder.id)}
-                                className="rounded-sm bg-surface-onyx px-3 py-2 text-sm font-medium text-ink transition-colors hover:bg-surface-onyx/70 disabled:opacity-60 cursor-pointer"
-                              >
-                                수정
-                              </button>
-                              {canDelete(reminder) && (
-                                <button
-                                  type="button"
-                                  disabled={busyId === reminder.id}
-                                  onClick={() => setConfirmDeleteId(reminder.id)}
-                                  className="rounded-sm bg-surface-onyx px-3 py-2 text-sm font-medium text-ink transition-colors hover:bg-danger/80 disabled:opacity-60 cursor-pointer"
-                                >
-                                  삭제
-                                </button>
-                              )}
+                              <RowMenu
+                                busy={busyId === reminder.id}
+                                canDelete={canDelete(reminder)}
+                                isOpen={menuOpenId === reminder.id}
+                                onToggle={() => toggleMenu(reminder.id)}
+                                onEdit={() => startEdit(reminder.id)}
+                                onDeleteRequest={() => requestDelete(reminder.id)}
+                              />
                             </>
                           )}
                         </div>
@@ -446,24 +451,14 @@ export function ReminderBoard({
                               >
                                 되돌리기
                               </button>
-                              <button
-                                type="button"
-                                disabled={busyId === reminder.id}
-                                onClick={() => setEditingId(reminder.id)}
-                                className="rounded-sm bg-surface-onyx px-3 py-2 text-sm font-medium text-ink transition-colors hover:bg-surface-onyx/70 disabled:opacity-60 cursor-pointer"
-                              >
-                                수정
-                              </button>
-                              {canDelete(reminder) && (
-                                <button
-                                  type="button"
-                                  disabled={busyId === reminder.id}
-                                  onClick={() => setConfirmDeleteId(reminder.id)}
-                                  className="rounded-sm bg-surface-onyx px-3 py-2 text-sm font-medium text-ink transition-colors hover:bg-danger/80 disabled:opacity-60 cursor-pointer"
-                                >
-                                  삭제
-                                </button>
-                              )}
+                              <RowMenu
+                                busy={busyId === reminder.id}
+                                canDelete={canDelete(reminder)}
+                                isOpen={menuOpenId === reminder.id}
+                                onToggle={() => toggleMenu(reminder.id)}
+                                onEdit={() => startEdit(reminder.id)}
+                                onDeleteRequest={() => requestDelete(reminder.id)}
+                              />
                             </>
                           )}
                         </div>
@@ -566,6 +561,78 @@ function EditReminderForm({
         </button>
       </div>
     </form>
+  );
+}
+
+function RowMenu({
+  busy,
+  canDelete,
+  isOpen,
+  onToggle,
+  onEdit,
+  onDeleteRequest,
+}: {
+  busy: boolean;
+  canDelete: boolean;
+  isOpen: boolean;
+  onToggle: () => void;
+  onEdit: () => void;
+  onDeleteRequest: () => void;
+}) {
+  if (!isOpen) {
+    return (
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-label="더 보기"
+        aria-expanded={false}
+        className="rounded-sm bg-surface-onyx p-2.5 text-ink transition-colors hover:bg-surface-onyx/70 cursor-pointer"
+      >
+        <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+          <circle cx="4" cy="10" r="1.6" />
+          <circle cx="10" cy="10" r="1.6" />
+          <circle cx="16" cy="10" r="1.6" />
+        </svg>
+      </button>
+    );
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={onEdit}
+        className="rounded-sm bg-surface-onyx px-3 py-2 text-sm font-medium text-ink transition-colors hover:bg-surface-onyx/70 disabled:opacity-60 cursor-pointer"
+      >
+        수정
+      </button>
+      {canDelete && (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={onDeleteRequest}
+          className="rounded-sm bg-surface-onyx px-3 py-2 text-sm font-medium text-ink transition-colors hover:bg-danger/80 disabled:opacity-60 cursor-pointer"
+        >
+          삭제
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-label="닫기"
+        aria-expanded={true}
+        className="rounded-sm bg-surface-onyx p-2.5 text-ink transition-colors hover:bg-surface-onyx/70 cursor-pointer"
+      >
+        <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+          <path
+            fillRule="evenodd"
+            d="M5.22 5.22a.75.75 0 011.06 0L10 8.94l3.72-3.72a.75.75 0 111.06 1.06L11.06 10l3.72 3.72a.75.75 0 11-1.06 1.06L10 11.06l-3.72 3.72a.75.75 0 01-1.06-1.06L8.94 10 5.22 6.28a.75.75 0 010-1.06z"
+            clipRule="evenodd"
+          />
+        </svg>
+      </button>
+    </>
   );
 }
 
