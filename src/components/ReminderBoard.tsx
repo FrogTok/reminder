@@ -40,6 +40,11 @@ export function ReminderBoard({
   const [selectedStreamerId, setSelectedStreamerId] = useState<string | null>(
     streamers[0]?.id ?? null,
   );
+  const [doneCollapsed, setDoneCollapsed] = useState(false);
+
+  function toggleDoneCollapsed() {
+    setDoneCollapsed((prev) => !prev);
+  }
 
   const isManager = role === "MANAGER";
   // 매니저는 선택한 탭의 스트리머, 스트리머는 항상 본인을 대상으로 등록/조회합니다.
@@ -269,14 +274,30 @@ export function ReminderBoard({
           </section>
 
           <section className="flex flex-col gap-3">
-            <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted">
+            <button
+              type="button"
+              onClick={toggleDoneCollapsed}
+              aria-expanded={!doneCollapsed}
+              className="flex w-fit items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted cursor-pointer hover:text-ink"
+            >
+              <svg
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                className={`h-3.5 w-3.5 transition-transform ${doneCollapsed ? "-rotate-90" : ""}`}
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                  clipRule="evenodd"
+                />
+              </svg>
               완료
               <span className="rounded-full bg-surface-onyx px-2 py-0.5 text-xs font-bold text-ink">
                 {done.length}
               </span>
-            </h2>
+            </button>
 
-            {done.length === 0 ? (
+            {doneCollapsed ? null : done.length === 0 ? (
               <EmptyState text="아직 완료된 리마인더가 없습니다." />
             ) : (
               <div className="flex flex-col gap-3">
