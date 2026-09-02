@@ -1,11 +1,9 @@
 import { NextResponse } from "next/server";
+import type { Role } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-async function canAccessReminder(
-  reminderId: string,
-  user: { id: string; role: "MANAGER" | "STREAMER" },
-) {
+async function canAccessReminder(reminderId: string, user: { id: string; role: Role }) {
   const reminder = await prisma.reminder.findUnique({
     where: { id: reminderId },
     include: { streamer: { select: { id: true, managerId: true } } },
@@ -27,6 +25,9 @@ export async function PATCH(
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+  if (session.user.role === "ADMIN") {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
   const { id } = await params;
@@ -64,6 +65,9 @@ export async function DELETE(
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+  if (session.user.role === "ADMIN") {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
   const { id } = await params;

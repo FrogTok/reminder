@@ -17,3 +17,11 @@ export type StreamerSummary = {
   displayName: string;
   username: string;
 };
+
+export type ManagedUser = {
+  id: string;
+  username: string;
+  displayName: string;
+  role: "ADMIN" | "MANAGER" | "STREAMER";
+  managerId: string | null;
+};

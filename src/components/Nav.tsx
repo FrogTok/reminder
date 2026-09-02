@@ -7,7 +7,13 @@ import Image from "next/image";
 
 type NavProps = {
   displayName: string;
-  role: "MANAGER" | "STREAMER";
+  role: "ADMIN" | "MANAGER" | "STREAMER";
+};
+
+const roleLabel: Record<NavProps["role"], string> = {
+  ADMIN: "관리자",
+  MANAGER: "매니저",
+  STREAMER: "스트리머",
 };
 
 export function Nav({ displayName, role }: NavProps) {
@@ -31,11 +37,23 @@ export function Nav({ displayName, role }: NavProps) {
 
         <nav className="flex items-center gap-2 sm:gap-3">
           <span className="hidden sm:inline-flex items-center rounded-lg bg-magenta px-2.5 py-1 text-xs font-semibold text-ink">
-            {role === "MANAGER" ? "매니저" : "스트리머"}
+            {roleLabel[role]}
           </span>
           <span className="hidden sm:inline text-sm text-muted">
             {displayName}님
           </span>
+          {role === "ADMIN" && (
+            <Link
+              href="/admin"
+              className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                pathname === "/admin"
+                  ? "bg-surface-indigo text-ink"
+                  : "text-muted hover:text-ink hover:bg-surface-indigo/60"
+              }`}
+            >
+              계정 관리
+            </Link>
+          )}
           <Link
             href="/settings"
             className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${

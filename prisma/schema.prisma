@@ -8,6 +8,7 @@ datasource db {
 }
 
 enum Role {
+  ADMIN
   MANAGER
   STREAMER
 }
@@ -26,8 +27,10 @@ model User {
   createdAt    DateTime @default(now())
 
   // STREAMER only: the manager this streamer is matched to.
+  // Restrict (not the Prisma default of SetNull for optional FKs): deleting
+  // a manager who still has streamers must fail loudly, not silently orphan them.
   managerId String?
-  manager   User?   @relation("ManagerStreamers", fields: [managerId], references: [id])
+  manager   User?   @relation("ManagerStreamers", fields: [managerId], references: [id], onDelete: Restrict)
 
   // MANAGER only: streamers matched to this manager.
   streamers User[] @relation("ManagerStreamers")
@@ -45,15 +48,18 @@ model Reminder {
   status      ReminderStatus @default(PENDING)
 
   // The streamer this schedule belongs to. Visible only to this streamer
-  // and their matched manager.
+  // and their matched manager. Deleting the streamer removes their board.
   streamerId String
-  streamer   User   @relation("StreamerOwner", fields: [streamerId], references: [id])
+  streamer   User   @relation("StreamerOwner", fields: [streamerId], references: [id], onDelete: Cascade)
 
+  // Restrict (not the Prisma default of Cascade for required FKs): deleting
+  // whoever created a reminder must not silently wipe another streamer's
+  // still-active schedule just because they authored some of its items.
   createdById String
-  createdBy   User   @relation("CreatedBy", fields: [createdById], references: [id])
+  createdBy   User   @relation("CreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
 
   completedById String?
-  completedBy   User?     @relation("CompletedBy", fields: [completedById], references: [id])
+  completedBy   User?     @relation("CompletedBy", fields: [completedById], references: [id], onDelete: SetNull)
   completedAt   DateTime?
 
   createdAt DateTime @default(now())

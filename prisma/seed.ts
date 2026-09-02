@@ -1,22 +1,20 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { generatePassword } from "../src/lib/password";
 
 const prisma = new PrismaClient();
 
-function randomPassword() {
-  return crypto.randomBytes(9).toString("base64url");
-}
-
 type AccountSeed =
+  | { username: string; displayName: string; role: "ADMIN" }
   | { username: string; displayName: string; role: "MANAGER" }
   | { username: string; displayName: string; role: "STREAMER"; managerUsername: string };
 
+// 관리자는 계정 관리 화면(/admin)에서 매니저/스트리머 계정을 직접 만들 수 있습니다.
 // 매니저를 먼저 만들고, 각 스트리머는 managerUsername으로 담당 매니저를 지정합니다.
-// 스트리머는 본인의 매니저와만 리마인더를 공유합니다.
 const accounts: AccountSeed[] = [
+  { username: "admin1", displayName: "관리자", role: "ADMIN" },
   { username: "manager1", displayName: "매니저1", role: "MANAGER" },
   { username: "manager2", displayName: "매니저2", role: "MANAGER" },
   { username: "streamer1", displayName: "스트리머1", role: "STREAMER", managerUsername: "manager1" },
@@ -49,7 +47,7 @@ async function main() {
       managerId = manager.id;
     }
 
-    const password = randomPassword();
+    const password = generatePassword();
     const passwordHash = await bcrypt.hash(password, 12);
 
     await prisma.user.create({
@@ -66,16 +64,16 @@ async function main() {
   }
 
   if (created.length > 0) {
+    const roleLabel = { ADMIN: "관리자", MANAGER: "매니저", STREAMER: "스트리머" } as const;
     const lines = [
       "# 초기 계정 정보 (이 파일은 git에 커밋되지 않습니다)",
       "",
       "로그인 후 반드시 설정 페이지에서 비밀번호를 변경하세요.",
       "",
       ...created.map(({ account, password }) => {
-        const role = account.role === "MANAGER" ? "매니저" : "스트리머";
         const managed =
           account.role === "STREAMER" ? ` (담당 매니저: ${account.managerUsername})` : "";
-        return `- ${role} (${account.displayName})${managed} : 아이디 \`${account.username}\` / 비밀번호 \`${password}\``;
+        return `- ${roleLabel[account.role]} (${account.displayName})${managed} : 아이디 \`${account.username}\` / 비밀번호 \`${password}\``;
       }),
       "",
     ];

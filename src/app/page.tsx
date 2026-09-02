@@ -10,6 +10,10 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
+  if (session.user.role === "ADMIN") {
+    redirect("/admin");
+  }
+
   const isManager = session.user.role === "MANAGER";
 
   const reminderWhere = isManager
