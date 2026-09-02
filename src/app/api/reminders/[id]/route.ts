@@ -32,9 +32,14 @@ export async function PATCH(
 
   const { id } = await params;
   const body = await request.json().catch(() => null);
-  const status = body?.status;
-  if (status !== "DONE" && status !== "PENDING") {
-    return NextResponse.json({ error: "invalid status" }, { status: 400 });
+  if (!body || typeof body !== "object") {
+    return NextResponse.json({ error: "invalid request" }, { status: 400 });
+  }
+
+  const hasStatusUpdate = "status" in body;
+  const hasContentUpdate = "title" in body || "description" in body || "dueAt" in body;
+  if (!hasStatusUpdate && !hasContentUpdate) {
+    return NextResponse.json({ error: "invalid request" }, { status: 400 });
   }
 
   const existing = await canAccessReminder(id, session.user);
@@ -42,13 +47,62 @@ export async function PATCH(
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
 
+  const data: {
+    status?: "DONE" | "PENDING";
+    completedAt?: Date | null;
+    completedById?: string | null;
+    title?: string;
+    description?: string | null;
+    dueAt?: Date | null;
+  } = {};
+
+  if (hasStatusUpdate) {
+    const status = body.status;
+    if (status !== "DONE" && status !== "PENDING") {
+      return NextResponse.json({ error: "invalid status" }, { status: 400 });
+    }
+    data.status = status;
+    data.completedAt = status === "DONE" ? new Date() : null;
+    data.completedById = status === "DONE" ? session.user.id : null;
+  }
+
+  if (hasContentUpdate) {
+    // 매니저는 담당 스트리머의 모든 일정을, 스트리머는 본인이 등록한 일정만 수정할 수 있습니다.
+    const canEdit = session.user.role === "MANAGER" || existing.createdById === session.user.id;
+    if (!canEdit) {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    }
+
+    if ("title" in body) {
+      const title = typeof body.title === "string" ? body.title.trim() : "";
+      if (!title) {
+        return NextResponse.json({ error: "제목을 입력해주세요." }, { status: 400 });
+      }
+      data.title = title;
+    }
+
+    if ("description" in body) {
+      data.description =
+        typeof body.description === "string" && body.description.trim()
+          ? body.description.trim()
+          : null;
+    }
+
+    if ("dueAt" in body) {
+      let dueAt: Date | null = null;
+      if (typeof body.dueAt === "string" && body.dueAt) {
+        const parsed = new Date(body.dueAt);
+        if (!Number.isNaN(parsed.getTime())) {
+          dueAt = parsed;
+        }
+      }
+      data.dueAt = dueAt;
+    }
+  }
+
   const reminder = await prisma.reminder.update({
     where: { id },
-    data: {
-      status,
-      completedAt: status === "DONE" ? new Date() : null,
-      completedById: status === "DONE" ? session.user.id : null,
-    },
+    data,
     include: {
       createdBy: { select: { displayName: true } },
       completedBy: { select: { displayName: true } },
