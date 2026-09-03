@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Space_Grotesk, Inter } from "next/font/google";
 import "./globals.css";
 import { auth } from "@/lib/auth";
@@ -18,7 +18,23 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "리마인더",
   description: "매니저와 스트리머를 위한 스케줄 리마인더",
-  icons: { icon: "/reminder-logo.png" },
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: "/icons/apple-touch-icon.png",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "리마인더",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0a0d3a",
+  colorScheme: "dark",
 };
 
 export default async function RootLayout({
