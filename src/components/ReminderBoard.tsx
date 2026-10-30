@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { ReminderDto, StreamerSummary } from "@/lib/types";
+import { Markdown } from "@/components/Markdown";
 import { NewReminderForm } from "@/components/NewReminderForm";
 
 function formatDate(iso: string | null) {
@@ -331,9 +332,9 @@ export function ReminderBoard({
                             )}
                           </div>
                           {reminder.description && (
-                            <p className="whitespace-pre-wrap text-sm text-muted">
-                              <Linkified text={reminder.description} />
-                            </p>
+                            <div className="text-sm text-muted">
+                              <Markdown text={reminder.description} />
+                            </div>
                           )}
                           <p className="text-xs text-muted">
                             {reminder.dueAt && <>마감 {formatDate(reminder.dueAt)} · </>}
@@ -424,12 +425,12 @@ export function ReminderBoard({
                             <Linkified text={reminder.title} />
                           </h3>
                           {reminder.description && (
-                            <p className="whitespace-pre-wrap text-sm text-muted">
-                              <Linkified text={reminder.description} />
-                            </p>
+                            <div className="text-sm text-muted">
+                              <Markdown text={reminder.description} />
+                            </div>
                           )}
                           <p className="text-xs text-muted">
-                            완료 {formatDate(reminder.completedAt)} ·{" "}
+                            완료{formatDate(reminder.completedAt)} ·{" "}
                             {reminder.completedBy?.displayName ?? "-"}
                           </p>
                         </div>
@@ -520,7 +521,7 @@ function EditReminderForm({
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-medium text-muted">설명 (선택)</label>
+        <label className="text-sm font-medium text-muted">설명 (선택, 마크다운 지원)</label>
         <textarea
           value={description}
           onChange={(event) => setDescription(event.target.value)}

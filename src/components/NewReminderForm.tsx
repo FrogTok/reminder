@@ -70,7 +70,7 @@ export function NewReminderForm({
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="description" className="text-sm font-medium text-muted">
-          설명 (선택)
+          설명 (선택, 마크다운 지원)
         </label>
         <textarea
           id="description"
